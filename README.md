@@ -1,3 +1,2 @@
 With the power of magic methods. 
-You can make a whole app without parenthesis(with the exception of the stdio library that you import)
-Named papaya after they pya function that executes python without parenthesis.  
+You can make a whole app without parenthesis 

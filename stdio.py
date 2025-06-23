@@ -4,45 +4,70 @@ p < "str"                 # lp but with auto-newline
 li < "str"                # low level input with sys stdin
 i < "str"                 # li wrapper, way better than li
 hg < ''                   # getch, args are ignored but required
+hc < ''                   # uses escape chars for clear, unless system is windows, then system cls
 b64de < "base64string"    # returns decoded str
 cmd < "sh command"        # os.system wrapper  
 pya < "PYTHON_CMD args"   # just a workaround for parenthesis cus I think its funny to not use them
 exe < "python"            # exec without formatting
 """
+
 import os
 import sys
 import base64
+if os.name == "nt":
+    import msvcrt
+else:
+    import tty
+    import termios
 
+
+
+
+
+
+call="()"
+
+
+
+
+
+# -------------------------
+# Printing Functions
+# -------------------------
 
 class LowPrint:
     """Low level printing, requires newline at the end of string"""
-
     def __lt__(self, thing):
         try:
             sys.stdout.write(str(thing))
             sys.stdout.flush()
         except IOError as e:
             print(f"IO Error: {e}", file=sys.stderr)
-
-
 lp = LowPrint()
-"""Low level printing, requires newline at the end of string"""
-
-
 
 class Print:
     """This is exactly the same as regular python builtin print()"""
-
-    def __lt__(self, thing):  # __lt__ -< Less than allows redirection
+    def __lt__(self, thing):
         try:
             lp < f"{thing}\n"
         except IOError as e:
             lp < f"IO Error: {e}\n"
-
-
 p = Print()
-"""This is exactly the same as regular python builtin print()"""
 
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------
+# Input Functions
+# -------------------------
 
 class LowInput:
     def __lt__(self, thing):
@@ -53,31 +78,20 @@ class LowInput:
         except Exception as e:
             p < f'Error: {e}'
             return None
-
-
 li = LowInput()
-"""This is a low level input (doesnt format)"""
-
 
 class Input:
-    def __lt__(self, thing): # just a shorter version of li no real reason for it anymore
+    def __lt__(self, thing):
         try:
             a = li < str(thing)
             return a
         except Exception as e:
             p < e
-
-
 i = Input()
-"""Same as regular python input()"""
 
 
 class _GetchUnix:
-    def __init__(self):
-        import tty, sys
-
     def __call__(self):
-        import sys, tty, termios
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
@@ -87,105 +101,271 @@ class _GetchUnix:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-
 class _GetchWindows:
-    def __init__(self):
-        import msvcrt
-
     def __call__(self):
-        import msvcrt
-        return msvcrt.getch()  # type: ignore # im on a linux system
-
+        return msvcrt.getch()  # type: ignore
 
 class _Getch:
     def __init__(self):
-        try:
+        if os.name == "nt":
             self.impl = _GetchWindows()
-        except ImportError:
+        else:
             self.impl = _GetchUnix()
-
     def __call__(self):
         return self.impl()
-
-
 getch = _Getch()
-"""Takes one key as input, win/linux only"""
-
 
 class HighGetch:
     def __lt__(self, thing):
         return getch()
-
-
 hg = HighGetch()
-"""Takes one key as input, win/linux only"""
 
 
+
+
+
+
+
+
+# -------------------------
+# Terminal Control
+# -------------------------
+
+class clear:
+    def __lt__(self, thing):
+        if os.name == "nt":
+            os.system('cls')
+        else:
+            lp < '\033c'
+        return thing
+hc = clear()
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------
+# System/Utility Functions
+# -------------------------
+
+class Command:
+    def __lt__(self, thing):
+        os.system(thing)
+cmd = Command()
+
+
+
+
+
+
+
+
+
+# -------------------------
+# PAPAYA WORKAROUNDS
+# -------------------------
+
+class Def:
+    def __lt__(self, thing):
+        """
+        thing: a string like "foo x, y: return x + y"
+        Defines a function named foo with args x, y and body 'return x + y'
+        """
+        import sys
+        caller_globals = sys._getframe(1).f_globals
+        name, rest = thing.split(' ', 1)
+        args, body = rest.split(':', 1)
+        code = f"def {name}({args.strip()}):\n    {body.strip()}"
+        exec(code, caller_globals)
+def_ = Def()
+
+class Pyargs:
+    def __lt__(self, string):
+        caller_globals = sys.modules['__main__'].__dict__
+        parts = string.split(maxsplit=1)
+        self.cmd = parts[0] if parts else ""
+        self.args = parts[1] if len(parts) > 1 else ""
+        return eval(f"{self.cmd}({self.args})", caller_globals)
+pya = Pyargs()
+
+class Execute:
+    def __lt__(self, string):
+        caller_globals = sys.modules['__main__'].__dict__
+        return eval(string, caller_globals)
+exe = Execute()
+
+class MoveToStdio:
+    def __lt__(self, thing):
+        caller_globals = sys.modules['__main__'].__dict__
+        caller_globals[thing] = str(thing)
+mov = MoveToStdio()
+
+
+#  Typing functions
+class types:
+    class Type:
+        def __lt__(self, thing):
+            return type(thing)
+    type_ = Type()
+        
+    class MakeStr:
+        def __lt__(self, thing):
+            return str(thing)
+    str_ = MakeStr()
+
+    class MakeInt:
+        def __lt__(self, thing):
+            return int(thing)
+    int_ = MakeInt()
+
+    class MakeFloat:
+        def __lt__(self, thing):
+            return float(thing)
+    float_ = MakeFloat()
+
+    class MakeBool:
+        def __lt__(self, thing):
+            return bool(thing)
+    bool_ = MakeBool()
+
+    class MakeList:
+        def __lt__(self, thing):
+            return list(thing)
+    list_ = MakeList()
+
+    class MakeTuple:
+        def __lt__(self, thing):
+            return tuple(thing)
+    tuple_ = MakeTuple()
+
+    class MakeDict:
+        def __lt__(self, thing):
+            return dict(thing)
+    dict_ = MakeDict()
+
+    class MakeSet:
+        def __lt__(self, thing):
+            return set(thing)
+    set_ = MakeSet()
+
+    class MakeBytes:
+        def __lt__(self, thing):
+            return bytes(thing)
+    bytes_ = MakeBytes()
+
+    class MakeComplex:
+        def __lt__(self, thing):
+            return complex(thing)
+    complex_ = MakeComplex()
+
+
+
+
+    # input validation
+    class IsStr:
+    
+        def __lt__(self, thing):
+            return isinstance(thing, str)
+    isstr = IsStr()
+
+    class IsInt:
+        def __lt__(self, thing):
+            return isinstance(thing, int)
+    isint = IsInt()
+
+    class IsFloat:
+        def __lt__(self, thing):
+            return isinstance(thing, float)
+    isfloat = IsFloat()
+
+    class IsBool:
+        def __lt__(self, thing):
+            return isinstance(thing, bool)
+    isbool = IsBool()
+
+    class IsList:
+        def __lt__(self, thing):
+            return isinstance(thing, list)
+    islist = IsList()
+
+    class IsTuple:
+        def __lt__(self, thing):
+            return isinstance(thing, tuple)
+    istuple = IsTuple()
+
+    class IsDict:
+        def __lt__(self, thing):
+            return isinstance(thing, dict)
+    isdict = IsDict()
+
+    class IsSet:
+        def __lt__(self, thing):
+            return isinstance(thing, set)
+    isset = IsSet()
+
+    class IsNone:
+        def __lt__(self, thing):
+            return thing is None
+    isnone = IsNone()
+
+    class IsBytes:
+        def __lt__(self, thing):
+            return isinstance(thing, bytes)
+    isbytes = IsBytes()
+
+    class IsComplex:
+        def __lt__(self, thing):
+            return isinstance(thing, complex)
+    iscomplex = IsComplex()
+
+    class IsCallable:
+        def __lt__(self, thing):
+            return callable(thing)
+    iscallable = IsCallable()
+
+    class IsObject:
+        def __lt__(self, thing):
+            return isinstance(thing, object)
+    isobject = IsObject()
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------
+# OTHER
+# -------------------------
 class B64d:
     def __lt__(self, thing):
         b64str = thing
         b64b = b64str.encode("ascii")
         strb = base64.b64decode(b64b)
         return strb.decode("ascii")
-
-
 b64de = B64d()
-"""Decodes a base64 string"""
 
 
-class Command:
-    def __lt__(self, thing):
-        os.system(thing)
 
 
-cmd = Command()
-"""executes string with os.system"""
 
 
-class Pyargs:
-    def __lt__(self, string):
-        import sys
-        caller_globals = sys.modules['__main__'].__dict__
-        parts = string.split(maxsplit=1)
-        self.cmd = parts[0] if parts else ""
-        self.args = parts[1] if len(parts) > 1 else ""
-        return eval(f"{self.cmd}({self.args})", caller_globals)
+#test
+def main():
+    def_ < "test arg1: lp<arg1"
+    pya < 'test \'hi\'';lp<'\n'
 
-
-pya = Pyargs()
-"""Takes first word as argument and everything after in parenthesis"""
-
-
-class Execute:
-    def __lt__(self, string):
-        caller_globals = sys.modules['__main__'].__dict__
-        return eval(string, caller_globals)  # Using eval instead of exec to get return value
-
-
-exe = Execute()
-"""execs a string"""
-
-
-class MoveToStdio:
-    def __lt__(self, thing):
-        caller_globals = sys.modules['__main__'].__dict__
-        caller_globals[thing] = str(thing)
-
-
-mov = MoveToStdio()
-""" probably useless now, but moves anything into the outer scope"""
-
-
-class MakeStr:
-    def __lt__(self, thing):
-        return str(thing)
-
-
-mkstr = MakeStr()
-"""str()"""
-
-
-class MakeInt:
-    def __lt__(self, thing):
-        return int(thing)
-mkint=MakeInt()
+if __name__ == "__main__":
+    main()
